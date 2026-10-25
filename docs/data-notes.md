@@ -29,12 +29,18 @@ There is no independent shipment event stream in these two files. Later we will 
 
 ## Record your Day 1 findings
 
-- Download date:
-- Order row count:
-- Order-item row count:
-- Duplicate order keys:
-- Duplicate item keys:
-- Purchase timestamp range:
-- Columns containing empty values:
-- Order items referencing absent orders:
+- Download date: 10/24/2026
+- Order row count: 99441
+- Order-item row count: 112650
+- Duplicate order keys: 0
+- Duplicate item keys: 0
+- Purchase timestamp range:  "2016-09-04 21:15:19" - "2018-10-17 17:30:18",
+- Columns containing empty values:  "order_approved_at": 160,
+        "order_delivered_carrier_date": 1783,
+        "order_delivered_customer_date": 2965,
+- Order items referencing absent orders: 0
 - Questions to investigate before validation rules are finalized:
+- Are missing delivery timestamps explained by order status?
+- Do any delivered orders lack a customer-delivery timestamp?
+- Are any approval, carrier-handoff, or delivery dates earlier than purchase?
+- Which orders have no item records, and what are their statuses?

@@ -29,3 +29,7 @@ data/local/*
 *.tfvars
 *.tfvars.json
 crash.log
+
+
+
+.terraform/

@@ -95,12 +95,3 @@ flowchart TD
 
 Terraform will define the AWS infrastructure. Glue is initially used for catalog metadata, not Spark processing. Historical batches simulate arrivals; they are not a live carrier feed. See `docs/roadmap.md` for the remaining days.
 
-## Learning resources
-
-- pandas basics: https://pandas.pydata.org/docs/getting_started/intro_tutorials/
-- Git and GitHub basics: https://docs.github.com/en/get-started/using-github/hello-world
-- Terraform AWS introduction for Day 2: https://developer.hashicorp.com/terraform/tutorials/aws-get-started
-
-## Local Git repository
-
-This project is initialized locally on `codex/day-1-starter`. No GitHub repository or remote is created, and no AWS infrastructure is deployed. Generated data, environment files, and Terraform state are excluded from Git.

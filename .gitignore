@@ -1,0 +1,31 @@
+# Python and IDE-local state
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/
+
+# Private configuration
+.env
+.env.*
+!.env.example
+.aws/
+credentials
+
+# Downloaded data and generated artifacts
+data/raw/*
+!data/raw/.gitkeep
+data/local/*
+!data/local/.gitkeep
+*.log
+
+# Terraform: commit .terraform.lock.hcl when generated
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log

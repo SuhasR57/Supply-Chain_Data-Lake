@@ -85,6 +85,13 @@ Historical CSVs → Daily batches → Integrity checks → S3 files → Manifest
 
 Each uploaded manifest references the exact S3 objects belonging to its batch. Failed attempts may leave unreferenced files; existing published batches are not overwritten.
 
+## Validate a Batch
+
+Run from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.validate_batch --batch-dir data/local/batches/olist-2018-01-01
+
 ## Planned Processing
 
 Record validation, quarantine, Parquet transformation, Lambda, Step Functions, DynamoDB batch tracking, Glue Data Catalog, Athena, and CloudWatch monitoring.

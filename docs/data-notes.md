@@ -44,3 +44,14 @@ There is no independent shipment event stream in these two files. Later we will 
 - Do any delivered orders lack a customer-delivery timestamp?
 - Are any approval, carrier-handoff, or delivery dates earlier than purchase?
 - Which orders have no item records, and what are their statuses?
+
+
+## Validation results
+
+Validated seven historical batches covering January 1–7, 2018.
+
+- Orders: 1,383 accepted; 0 rejected.
+- Order items: 1,561 accepted; 0 rejected.
+- Input counts reconcile with accepted and rejected counts.
+- No violations were found under validation rules version 1.
+- Automated tests separately cover invalid records and batch failures.

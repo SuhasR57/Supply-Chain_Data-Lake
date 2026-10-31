@@ -17,6 +17,28 @@ An AWS data engineering project that replays historical order data as daily batc
 - Upload data files before publishing the manifest.
 - Skip already published batch IDs.
 
+## Architecture
+
+```text
+Historical CSVs
+      ↓
+Batch generator → Raw S3 files + manifest
+                              ↓
+                       Lambda invocation
+                              ↓
+                 Integrity checks and validation
+                         ↙             ↘
+                Quarantine          Accepted records
+                                         ↓
+                                Parquet transformation
+                                         ↓
+                                   Curated S3 files
+                                         ↓
+                                 Completion manifest
+```
+
+Terraform manages infrastructure. CloudWatch stores function logs.
+
 ## Project Structure
 
 ```text

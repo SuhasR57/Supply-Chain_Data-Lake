@@ -1,0 +1,127 @@
+{
+    "Comment": "Process one historical supply chain batch",
+    "QueryLanguage": "JSONPath",
+    "StartAt": "CheckInput",
+    "TimeoutSeconds": 900,
+    "States": {
+        "CheckInput": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "And": [
+                        {
+                            "Variable": "$.batch_id",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.batch_id",
+                            "IsString": true
+                        },
+                        {
+                            "Variable": "$.batch_id",
+                            "StringMatches": "olist-*"
+                        }
+                    ],
+                    "Next": "ProcessBatch"
+                }
+            ],
+            "Default": "InvalidInput"
+        },
+        "ProcessBatch": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${transform_function_arn}",
+                "Payload": {
+                    "mode": "s3",
+                    "batch_id.$": "$.batch_id"
+                }
+            },
+            "TimeoutSeconds": 180,
+            "ResultSelector": {
+                "batch_result.$": "$.Payload"
+            },
+            "ResultPath": "$.processing",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "BackoffRate": 2,
+                    "MaxAttempts": 3
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "ResultPath": "$.failure",
+                    "Next": "BatchFailed"
+                }
+            ],
+            "Next": "CheckBatchResult"
+        },
+        "CheckBatchResult": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "And": [
+                        {
+                            "Variable": "$.processing.batch_result.status",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.processing.batch_result.status",
+                            "StringEquals": "complete"
+                        }
+                    ],
+                    "Next": "BatchCompleted"
+                },
+                {
+                    "And": [
+                        {
+                            "Variable": "$.processing.batch_result.status",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.processing.batch_result.status",
+                            "StringEquals": "already_processed"
+                        }
+                    ],
+                    "Next": "BatchAlreadyProcessed"
+                }
+            ],
+            "Default": "UnexpectedBatchResult"
+        },
+        "BatchCompleted": {
+            "Type": "Pass",
+            "OutputPath": "$.processing.batch_result",
+            "End": true
+        },
+        "BatchAlreadyProcessed": {
+            "Type": "Pass",
+            "OutputPath": "$.processing.batch_result",
+            "End": true
+        },
+        "InvalidInput": {
+            "Type": "Fail",
+            "Error": "InvalidBatchInput",
+            "Cause": "Provide a string batch_id beginning with olist-."
+        },
+        "BatchFailed": {
+            "Type": "Fail",
+            "Error": "BatchProcessingFailed",
+            "Cause": "Lambda processing failed. Inspect ProcessBatch in the execution history."
+        },
+        "UnexpectedBatchResult": {
+            "Type": "Fail",
+            "Error": "UnexpectedBatchResult",
+            "Cause": "Lambda returned an unsupported processing status."
+        }
+    }
+}

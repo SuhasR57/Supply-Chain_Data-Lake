@@ -54,6 +54,57 @@ sql/            Future Athena queries
 tests/          Future automated tests
 ```
 
+## Architecture
+
+```mermaid
+flowchart TD
+    SOURCE["Olist historical CSV files"] --> GENERATOR["Python batch generator"]
+    GENERATOR --> LOCAL["Daily CSV batches and manifests"]
+    LOCAL --> UPLOADER["Uploader: verify sizes, hashes, and row counts"]
+    UPLOADER --> RAW["S3 raw bucket<br/>CSV files uploaded before manifest"]
+
+    MANUAL["Manual workflow execution<br/>batch_id"] --> CHECK["Step Functions: check input"]
+    CHECK -->|Valid input| TASK["Invoke processing Lambda<br/>Retry temporary invocation errors"]
+    CHECK -->|Invalid input| INVALID["Execution failed"]
+
+    RAW --> DOWNLOAD["Lambda: download manifest and referenced files"]
+    TASK --> DOWNLOAD
+    DOWNLOAD --> INTEGRITY["Verify file integrity"]
+    INTEGRITY --> VALIDATE["Validate schemas and records"]
+
+    VALIDATE --> ACCEPTED["Accepted orders and order items"]
+    VALIDATE --> REJECTED["Rejected records with reasons"]
+
+    ACCEPTED --> TRANSFORM["Create typed orders, items, and shipments"]
+    TRANSFORM --> VERIFY["Write and verify Parquet files"]
+    VERIFY --> CURATED["S3 curated bucket<br/>Unique processing-run directory"]
+
+    REJECTED --> QUARANTINE["S3 quarantine bucket<br/>Rejected CSVs and validation report"]
+
+    CURATED --> COMMIT["Publish completion manifest last"]
+    QUARANTINE --> COMMIT
+
+    COMMIT --> RESULT["Return complete"]
+    DOWNLOAD -->|Matching completion already exists| SKIP["Return already_processed"]
+
+    RESULT --> STATUS["Step Functions: check result"]
+    SKIP --> STATUS
+    STATUS --> SUCCESS["Execution succeeded"]
+    TASK -->|Unhandled processing error| FAILED["Execution failed"]
+
+    LAMBDA_LOGS["CloudWatch<br/>Lambda logs"] -.-> DOWNLOAD
+    TERRAFORM["Terraform<br/>Buckets, roles, Lambda, workflow, and log group"] -.-> RAW
+    TERRAFORM -.-> TASK
+```
+
+### Processing and Publication
+
+- Step Functions coordinates one batch; validation, transformation, and publication run inside Lambda.
+- Only files referenced by a completed manifest are considered published.
+- Repeated processing of the same completed input returns `already_processed`.
+- Failed attempts may leave unreferenced files without publishing a completion manifest.
+- Workflow execution is currently manual. Automatic triggers, DynamoDB tracking, and Athena integration are planned.
+
 ## Setup
 
 Requires Python 3.11+, AWS CLI v2, Terraform, and Git.

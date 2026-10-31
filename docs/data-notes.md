@@ -55,3 +55,12 @@ Validated seven historical batches covering January 1–7, 2018.
 - Input counts reconcile with accepted and rejected counts.
 - No violations were found under validation rules version 1.
 - Automated tests separately cover invalid records and batch failures.
+
+## Workflow verification
+
+- Rendered state machine definition validated successfully.
+- A real batch completed through Step Functions.
+- Repeated processing returned already_processed.
+- Missing batch_id failed before invoking Lambda.
+- A missing raw batch failed through the processing-error path.
+- Retry policy is configured for temporary Lambda invocation errors.

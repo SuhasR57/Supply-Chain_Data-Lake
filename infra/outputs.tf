@@ -16,3 +16,13 @@ output "transform_function_name" {
   description = "Lambda function running the transformation pipeline."
   value       = aws_lambda_function.transform.function_name
 }
+
+output "batch_workflow_arn" {
+  description = "Step Functions workflow processing one batch."
+  value       = aws_sfn_state_machine.batch.arn
+}
+
+output "batch_workflow_definition" {
+  description = "Rendered workflow definition for validation."
+  value       = aws_sfn_state_machine.batch.definition
+}

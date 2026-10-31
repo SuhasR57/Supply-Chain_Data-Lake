@@ -7,6 +7,16 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
+
+# Support both direct-script and python -m invocation.
+if __package__ in {None, ""}:
+    sys.path.insert(
+        0,
+        str(Path(__file__).resolve().parents[1]),
+    )
+
+from src.local_storage import publish_directory
 from tempfile import TemporaryDirectory
 
 import pandas as pd

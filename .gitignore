@@ -33,3 +33,5 @@ crash.log
 
 
 .terraform/
+
+infra/build/

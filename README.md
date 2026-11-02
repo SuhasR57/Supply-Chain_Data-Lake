@@ -169,6 +169,69 @@ Run from the repository root:
 
 Record validation, quarantine, Parquet transformation, Lambda, Step Functions, DynamoDB batch tracking, Glue Data Catalog, Athena, and CloudWatch monitoring.
 
+## Automated Processing and Batch Tracking
+
+Uploading a raw batch manifest automatically starts processing through Amazon EventBridge and AWS Step Functions.
+
+```mermaid
+flowchart TD
+    UPLOAD["Upload CSV files, then manifest"] --> RAW["S3 raw bucket"]
+    RAW --> RULE["EventBridge: match batch manifest"]
+    RULE --> WORKFLOW["Step Functions: normalize and validate input"]
+    RULE -->|Delivery failure| DLQ["SQS dead-letter queue"]
+
+    WORKFLOW --> STARTED["DynamoDB: record running"]
+    STARTED --> LAMBDA["Lambda: validate, transform, and publish"]
+
+    LAMBDA --> CURATED["S3 curated: Parquet and completion manifest"]
+    LAMBDA --> QUARANTINE["S3 quarantine: rejected records and validation report"]
+
+    LAMBDA -->|Successful result| SUCCESS["DynamoDB: complete or already_processed"]
+    LAMBDA -->|Caught processing error| FAILURE["DynamoDB: failed"]
+
+    SUCCESS --> DONE["Workflow succeeded"]
+    FAILURE --> FAILED["Workflow failed"]
+```
+
+### Trigger and Publication
+
+- Only raw batch manifest paths match the trigger:
+  `batches/olist-YYYY-MM-DD/manifest.json`.
+- CSV files are uploaded before the raw manifest.
+- The workflow extracts the batch ID and invokes the existing processing Lambda.
+- The curated completion manifest is published after all output artifacts.
+- Reprocessing a matching completed batch returns `already_processed`.
+- Duplicate notifications may start additional executions; conditional publication protects the committed batch.
+
+### Execution Ledger
+
+DynamoDB stores one record per workflow execution.
+
+| Attribute | Description |
+|---|---|
+| `batch_id` | Partition key identifying the batch |
+| `execution_id` | Sort key containing the execution ARN |
+| `status` | `running`, `complete`, `already_processed`, or `failed` |
+| `started_at` | Execution start time |
+| `finished_at` | Time the outcome was recorded |
+| `error` | Failure category, when applicable |
+
+The ledger records processing history. The curated completion manifest remains the authority for published data.
+
+### Failure Handling
+
+- EventBridge retries eligible workflow-start failures and sends undeliverable events to an SQS dead-letter queue.
+- The queue retains messages for four days.
+- Processing failures after workflow startup are handled by Step Functions and recorded in DynamoDB.
+- Stopped or overall timed-out executions may leave a `running` ledger record and require reconciliation.
+
+### Verification
+
+Verified manifest filtering, automatic workflow startup, successful publication, ledger updates, safe replay, and an empty delivery-failure queue after successful delivery.
+
+The source remains a historical Olist snapshot replayed in daily batches; automatic triggering does not make it a live shipment event feed.
+
+
 ## Notes
 
 - Historical replay does not reproduce a live order or carrier feed.

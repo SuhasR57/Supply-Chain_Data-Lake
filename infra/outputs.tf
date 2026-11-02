@@ -26,3 +26,18 @@ output "batch_workflow_definition" {
   description = "Rendered workflow definition for validation."
   value       = aws_sfn_state_machine.batch.definition
 }
+
+output "batch_runs_table_name" {
+  description = "DynamoDB table containing workflow attempt history."
+  value       = aws_dynamodb_table.batch_runs.name
+}
+
+output "raw_manifest_rule_name" {
+  description = "EventBridge rule starting raw batch processing."
+  value       = aws_cloudwatch_event_rule.raw_manifest.name
+}
+
+output "raw_manifest_dlq_url" {
+  description = "Queue holding undelivered workflow trigger events."
+  value       = aws_sqs_queue.raw_manifest_dlq.url
+}

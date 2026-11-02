@@ -1,7 +1,7 @@
 {
     "Comment": "Process one historical supply chain batch",
     "QueryLanguage": "JSONPath",
-    "StartAt": "CheckInput",
+    "StartAt": "RouteInput",
     "TimeoutSeconds": 900,
     "States": {
         "CheckInput": {
@@ -22,7 +22,7 @@
                             "StringMatches": "olist-*"
                         }
                     ],
-                    "Next": "ProcessBatch"
+                    "Next": "RecordStarted"
                 }
             ],
             "Default": "InvalidInput"
@@ -61,7 +61,7 @@
                         "States.ALL"
                     ],
                     "ResultPath": "$.failure",
-                    "Next": "BatchFailed"
+                    "Next": "RecordFailed"
                 }
             ],
             "Next": "CheckBatchResult"
@@ -80,7 +80,7 @@
                             "StringEquals": "complete"
                         }
                     ],
-                    "Next": "BatchCompleted"
+                    "Next": "RecordSucceeded"
                 },
                 {
                     "And": [
@@ -93,17 +93,12 @@
                             "StringEquals": "already_processed"
                         }
                     ],
-                    "Next": "BatchAlreadyProcessed"
+                    "Next": "RecordSucceeded"
                 }
             ],
-            "Default": "UnexpectedBatchResult"
+            "Default": "PrepareUnexpectedFailure"
         },
         "BatchCompleted": {
-            "Type": "Pass",
-            "OutputPath": "$.processing.batch_result",
-            "End": true
-        },
-        "BatchAlreadyProcessed": {
             "Type": "Pass",
             "OutputPath": "$.processing.batch_result",
             "End": true
@@ -118,10 +113,148 @@
             "Error": "BatchProcessingFailed",
             "Cause": "Lambda processing failed. Inspect ProcessBatch in the execution history."
         },
-        "UnexpectedBatchResult": {
-            "Type": "Fail",
-            "Error": "UnexpectedBatchResult",
-            "Cause": "Lambda returned an unsupported processing status."
+        "RecordStarted": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Parameters": {
+                "TableName": "${batch_runs_table_name}",
+                "Key": {
+                    "batch_id": {
+                        "S.$": "$.batch_id"
+                    },
+                    "execution_id": {
+                        "S.$": "$$.Execution.Id"
+                    }
+                },
+                "UpdateExpression": "SET #status = :status, started_at = if_not_exists(started_at, :started)",
+                "ExpressionAttributeNames": {
+                    "#status": "status"
+                },
+                "ExpressionAttributeValues": {
+                    ":status": {
+                        "S": "running"
+                    },
+                    ":started": {
+                        "S.$": "$$.Execution.StartTime"
+                    }
+                }
+            },
+            "ResultPath": null,
+            "Next": "ProcessBatch"
+        },
+        "RecordSucceeded": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Parameters": {
+                "TableName": "${batch_runs_table_name}",
+                "Key": {
+                    "batch_id": {
+                        "S.$": "$.batch_id"
+                    },
+                    "execution_id": {
+                        "S.$": "$$.Execution.Id"
+                    }
+                },
+                "UpdateExpression": "SET #status = :status, finished_at = :finished",
+                "ExpressionAttributeNames": {
+                    "#status": "status"
+                },
+                "ExpressionAttributeValues": {
+                    ":status": {
+                        "S.$": "$.processing.batch_result.status"
+                    },
+                    ":finished": {
+                        "S.$": "$$.State.EnteredTime"
+                    }
+                }
+            },
+            "ResultPath": null,
+            "Next": "BatchCompleted"
+        },
+        "PrepareUnexpectedFailure": {
+            "Type": "Pass",
+            "Result": {
+                "Error": "UnexpectedBatchResult",
+                "Cause": "Lambda returned an unsupported processing status."
+            },
+            "ResultPath": "$.failure",
+            "Next": "RecordFailed"
+        },
+        "RecordFailed": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Parameters": {
+                "TableName": "${batch_runs_table_name}",
+                "Key": {
+                    "batch_id": {
+                        "S.$": "$.batch_id"
+                    },
+                    "execution_id": {
+                        "S.$": "$$.Execution.Id"
+                    }
+                },
+                "UpdateExpression": "SET #status = :status, finished_at = :finished, #error = :error",
+                "ExpressionAttributeNames": {
+                    "#status": "status",
+                    "#error": "error"
+                },
+                "ExpressionAttributeValues": {
+                    ":status": {
+                        "S": "failed"
+                    },
+                    ":finished": {
+                        "S.$": "$$.State.EnteredTime"
+                    },
+                    ":error": {
+                        "S.$": "$.failure.Error"
+                    }
+                }
+            },
+            "ResultPath": null,
+            "Next": "BatchFailed"
+        },
+        "RouteInput": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "And": [
+                        {
+                            "Variable": "$.raw_manifest_key",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.raw_manifest_key",
+                            "IsString": true
+                        },
+                        {
+                            "Variable": "$.raw_manifest_key",
+                            "StringMatches": "batches/olist-*/manifest.json"
+                        }
+                    ],
+                    "Next": "NormalizeManifestEvent"
+                }
+            ],
+            "Default": "CheckInput"
+        },
+        "NormalizeManifestEvent": {
+            "Type": "Pass",
+            "Parameters": {
+                "batch_id.$": "States.ArrayGetItem(States.StringSplit($.raw_manifest_key, '/'), 1)",
+                "raw_manifest_key.$": "$.raw_manifest_key",
+                "expected_manifest_key.$": "States.Format('batches/{}/manifest.json', States.ArrayGetItem(States.StringSplit($.raw_manifest_key, '/'), 1))"
+            },
+            "Next": "CheckManifestPath"
+        },
+        "CheckManifestPath": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.raw_manifest_key",
+                    "StringEqualsPath": "$.expected_manifest_key",
+                    "Next": "CheckInput"
+                }
+            ],
+            "Default": "InvalidInput"
         }
     }
 }

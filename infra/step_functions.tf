@@ -60,10 +60,12 @@ resource "aws_sfn_state_machine" "batch" {
     "${path.module}/workflows/process_batch.asl.json",
     {
       transform_function_arn = aws_lambda_function.transform.arn
+      batch_runs_table_name  = aws_dynamodb_table.batch_runs.name
     }
   )
 
   depends_on = [
     aws_iam_role_policy.batch_workflow_invoke,
+    aws_iam_role_policy.batch_workflow_ledger,
   ]
 }

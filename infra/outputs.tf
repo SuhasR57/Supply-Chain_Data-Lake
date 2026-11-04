@@ -41,3 +41,22 @@ output "raw_manifest_dlq_url" {
   description = "Queue holding undelivered workflow trigger events."
   value       = aws_sqs_queue.raw_manifest_dlq.url
 }
+
+output "glue_database_name" {
+  description = "Glue database containing the published datasets."
+  value       = aws_glue_catalog_database.lake.name
+}
+
+output "glue_table_names" {
+  description = "Glue tables for the published datasets."
+
+  value = {
+    for dataset, table in aws_glue_catalog_table.lake :
+    dataset => table.name
+  }
+}
+
+output "athena_workgroup_name" {
+  description = "Athena workgroup for project queries."
+  value       = aws_athena_workgroup.lake.name
+}

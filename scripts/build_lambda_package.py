@@ -20,6 +20,7 @@ FILES = [
     "scripts/transform_batch.py",
     "data/sample/olist_orders_dataset.csv",
     "data/sample/olist_order_items_dataset.csv",
+    "src/catalog_registrar.py",
 ]
 
 

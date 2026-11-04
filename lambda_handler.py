@@ -14,6 +14,7 @@ import os
 import boto3
 
 from src.s3_pipeline import process_batch
+from src.catalog_registrar import register_batch
 
 from scripts.generate_batches import generate_batches
 from scripts.validate_batch import validate_batch
@@ -75,6 +76,20 @@ def handler(event, context):
     if not isinstance(event, dict):
         raise ValueError("Expected an event object")
 
+    if event.get("mode") == "register":
+            result = register_batch(
+                batch_id=event.get("batch_id"),
+                s3=boto3.client("s3"),
+                glue=boto3.client("glue"),
+                curated_bucket=os.environ["CURATED_BUCKET"],
+                database=os.environ["GLUE_DATABASE"],
+            )
+    
+            return {
+                "status": "registered",
+                **result,
+            }
+
     if event.get("mode") == "sample":
         return run_sample(event, context)
 
@@ -91,5 +106,6 @@ def handler(event, context):
             buckets,
             temporary_root="/tmp",
         )
+    
 
-    raise ValueError("Supported modes: sample, s3")
+    raise ValueError("Supported modes: sample, s3, register")

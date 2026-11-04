@@ -232,6 +232,27 @@ Verified manifest filtering, automatic workflow startup, successful publication,
 The source remains a historical Olist snapshot replayed in daily batches; automatic triggering does not make it a live shipment event feed.
 
 
+## Catalog and SQL Access
+
+AWS Glue defines external Parquet tables for orders, order items,
+and derived order-level shipments. Each table is partitioned by
+`source_date`, the historical purchase date used for batch replay.
+
+After processing, Step Functions invokes partition registration.
+Registration reads the curated completion manifest, checks object
+locations and catalog schemas, and registers only the committed run.
+
+Matching existing partitions are accepted on replay. Conflicting
+locations or schemas cause the workflow to fail without overwriting
+the existing partition.
+
+Workflow success is recorded after registration completes. Registration
+across the three tables is not atomic; a replay can complete a partially
+registered batch.
+
+Athena queries use the `scdl-dev` workgroup, encrypted S3 query results,
+and a 100 MiB scan limit per query.
+
 ## Notes
 
 - Historical replay does not reproduce a live order or carrier feed.

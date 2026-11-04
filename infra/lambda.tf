@@ -74,6 +74,7 @@ resource "aws_lambda_function" "transform" {
   depends_on = [
     aws_iam_role_policy.transform_logs,
     aws_iam_role_policy.transform_s3,
+    aws_iam_role_policy.transform_catalog,
   ]
 
   environment {
@@ -81,6 +82,7 @@ resource "aws_lambda_function" "transform" {
       RAW_BUCKET        = aws_s3_bucket.lake["raw"].id
       CURATED_BUCKET    = aws_s3_bucket.lake["curated"].id
       QUARANTINE_BUCKET = aws_s3_bucket.lake["quarantine"].id
+      GLUE_DATABASE     = aws_glue_catalog_database.lake.name
     }
   }
 

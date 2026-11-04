@@ -80,7 +80,7 @@
                             "StringEquals": "complete"
                         }
                     ],
-                    "Next": "RecordSucceeded"
+                    "Next": "RegisterPartitions"
                 },
                 {
                     "And": [
@@ -93,14 +93,19 @@
                             "StringEquals": "already_processed"
                         }
                     ],
-                    "Next": "RecordSucceeded"
+                    "Next": "RegisterPartitions"
                 }
             ],
             "Default": "PrepareUnexpectedFailure"
         },
         "BatchCompleted": {
             "Type": "Pass",
-            "OutputPath": "$.processing.batch_result",
+            "Parameters": {
+                "status.$": "$.processing.batch_result.status",
+                "batch_id.$": "$.batch_id",
+                "processing.$": "$.processing.batch_result",
+                "catalog.$": "$.catalog.registration_result"
+            },
             "End": true
         },
         "InvalidInput": {
@@ -111,7 +116,7 @@
         "BatchFailed": {
             "Type": "Fail",
             "Error": "BatchProcessingFailed",
-            "Cause": "Lambda processing failed. Inspect ProcessBatch in the execution history."
+            "Cause": "Processing or catalog registration failed. Inspect the failed task in the execution history."
         },
         "RecordStarted": {
             "Type": "Task",
@@ -155,7 +160,7 @@
                         "S.$": "$$.Execution.Id"
                     }
                 },
-                "UpdateExpression": "SET #status = :status, finished_at = :finished",
+                "UpdateExpression": "SET #status = :status, finished_at = :finished, catalog_status = :catalog_status",
                 "ExpressionAttributeNames": {
                     "#status": "status"
                 },
@@ -165,11 +170,53 @@
                     },
                     ":finished": {
                         "S.$": "$$.State.EnteredTime"
+                    },
+                    ":catalog_status": {
+                        "S.$": "$.catalog.registration_result.status"
                     }
                 }
             },
             "ResultPath": null,
             "Next": "BatchCompleted"
+        },
+        "RegisterPartitions": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${transform_function_arn}",
+                "Payload": {
+                    "mode": "register",
+                    "batch_id.$": "$.batch_id"
+                }
+            },
+            "TimeoutSeconds": 180,
+            "ResultSelector": {
+                "registration_result.$": "$.Payload"
+            },
+            "ResultPath": "$.catalog",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "BackoffRate": 2,
+                    "MaxAttempts": 3
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "ResultPath": "$.failure",
+                    "Next": "RecordFailed"
+                }
+            ],
+            "Next": "RecordSucceeded"
         },
         "PrepareUnexpectedFailure": {
             "Type": "Pass",

@@ -6,7 +6,7 @@
 4. Schema and record validation; quarantine with reasons.
 5. Parquet transformations and Lambda deployment.
 6. Step Functions orchestration, retries, and failure paths.
-7. Manifest-triggered ingestion and DynamoDB duplicate prevention.
+7. Manifest-triggered processing and a DynamoDB execution-attempt ledger.Conditional S3 completion-manifest publication protects committed batches.
 8. Glue catalog tables, date partitions, and Athena checks.
 9. Failed-batch recovery, historical reprocessing, logs, and alarms.
 10. Fresh deployment verification, acceptance demo, and cleanup guide.

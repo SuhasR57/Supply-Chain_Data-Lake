@@ -60,3 +60,17 @@ output "athena_workgroup_name" {
   description = "Athena workgroup for project queries."
   value       = aws_athena_workgroup.lake.name
 }
+
+output "pipeline_alert_topic_arn" {
+  description = "SNS topic receiving pipeline alarm notifications."
+  value       = aws_sns_topic.pipeline_alerts.arn
+}
+
+output "pipeline_alarm_names" {
+  description = "CloudWatch alarms monitoring the pipeline."
+
+  value = {
+    for purpose, alarm in aws_cloudwatch_metric_alarm.pipeline :
+    purpose => alarm.alarm_name
+  }
+}

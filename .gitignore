@@ -35,3 +35,4 @@ crash.log
 .terraform/
 
 infra/build/
+infra/alerts.auto.tfvars

@@ -253,6 +253,23 @@ registered batch.
 Athena queries use the `scdl-dev` workgroup, encrypted S3 query results,
 and a 100 MiB scan limit per query.
 
+## Monitoring and Recovery
+
+Five CloudWatch alarms monitor failed, timed-out, and aborted workflows,
+the trigger dead-letter queue backlog, and failures to deliver events
+to that queue. Notifications use a confirmed SNS email subscription.
+
+Recovery starts a new execution for the same batch. Existing committed
+data is reused, and matching Glue partitions are accepted on replay.
+
+An operator reconciliation tool previews corrections for ledger rows
+left as `running` after terminal execution failures. Applied corrections
+use conditional DynamoDB updates and preserve existing outcomes.
+
+Recovery is verified through execution history, completion manifests,
+Glue partition locations, ledger records, and Athena row counts.
+Procedures are documented in `docs/recovery-runbook.md`.
+
 ## Notes
 
 - Historical replay does not reproduce a live order or carrier feed.
